@@ -81,6 +81,16 @@ mkdir -p /var/log/httpd /run/httpd
 : > /var/log/httpd/error_log || true
 : > /var/log/httpd/access_log || true
 
+# 如果 SSL 证书缺失则禁用默认 ssl.conf（避免 httpd 启动失败）
+if [ -f /etc/httpd/conf.d/ssl.conf ]; then
+  CRT=/etc/pki/tls/certs/localhost.crt
+  KEY=/etc/pki/tls/private/localhost.key
+  if [ ! -s "$CRT" ] || [ ! -s "$KEY" ]; then
+    echo "Disabling ssl.conf due to missing certs ($CRT / $KEY)"
+    mv /etc/httpd/conf.d/ssl.conf /etc/httpd/conf.d/ssl.conf.disabled || true
+  fi
+fi
+
 echo "Starting httpd..."
 /usr/sbin/httpd
 sleep 2
