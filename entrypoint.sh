@@ -44,6 +44,29 @@ fi
 # 修复 httpd 配置（设置 ServerName）
 echo "ServerName $SERVER" >> /etc/httpd/conf/httpd.conf
 
+# 配置 Apache 路由（如缺失则创建）
+if [ ! -f /etc/httpd/conf.d/cobbler_api.conf ]; then
+cat > /etc/httpd/conf.d/cobbler_api.conf <<'EOF'
+WSGIDaemonProcess cobbler-api display-name=%{GROUP} processes=2 threads=15
+WSGIScriptAlias /cobbler_api /var/www/cobbler/svc/services.py process-group=cobbler-api application-group=%{GLOBAL}
+<Directory "/var/www/cobbler/svc">
+    Require all granted
+</Directory>
+EOF
+fi
+
+if [ -d /usr/share/cobbler/web ] && [ ! -f /etc/httpd/conf.d/cobbler_web.conf ]; then
+cat > /etc/httpd/conf.d/cobbler_web.conf <<'EOF'
+Alias /cobbler_web /usr/share/cobbler/web
+<Directory "/usr/share/cobbler/web">
+    Options Indexes FollowSymLinks
+    AllowOverride None
+    Require all granted
+    DirectoryIndex index.html index.htm
+</Directory>
+EOF
+fi
+
 # 启动 rsyslog
 if [ -x /usr/sbin/rsyslogd ]; then
     /usr/sbin/rsyslogd || true
