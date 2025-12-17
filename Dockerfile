@@ -1,13 +1,10 @@
 FROM rockylinux/rockylinux:8
 
-ENV COBBLER_RPM cobbler-3.3.3-1.el8.noarch.rpm
-ENV DATA_VOLUMES "/var/lib/cobbler /var/www/cobbler /var/lib/dhcpd"
+ENV DATA_VOLUMES="/var/lib/cobbler /var/www/cobbler /var/lib/dhcpd"
 
-COPY $COBBLER_RPM /$COBBLER_RPM
 RUN set -ex \
   && dnf install -y epel-release \
-  && dnf install -y /$COBBLER_RPM \
-  && dnf install -y httpd cobbler-web dhcp-server pykickstart yum-utils debmirror git rsync-daemon \
+  && dnf install -y httpd cobbler3.2 cobbler3.2-web dhcp-server pykickstart yum-utils debmirror git rsync-daemon \
           ipxe-bootimgs shim grub2-efi-x64-modules python3-mod_wsgi python3-pyyaml \
           openssl procps-ng rsyslog tftp-server httpd-tools \
   && dnf clean all \

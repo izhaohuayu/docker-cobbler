@@ -24,10 +24,14 @@ done
 
 # 配置 Cobbler
 echo "Configuring Cobbler..."
-sed -i "s/^server: .*/server: $SERVER/g" /etc/cobbler/settings.yaml || true
-sed -i "s/^next_server_v4: .*/next_server_v4: $SERVER/g" /etc/cobbler/settings.yaml || true
+SETTINGS_FILE="/etc/cobbler/settings.yaml"
+[ -f "/etc/cobbler/settings" ] && SETTINGS_FILE="/etc/cobbler/settings"
+
+echo "Using settings file: $SETTINGS_FILE"
+sed -i "s/^server: .*/server: $SERVER/g" "$SETTINGS_FILE" || true
+sed -i "s/^next_server_v4: .*/next_server_v4: $SERVER/g" "$SETTINGS_FILE" || true
 # Desktop 模式下默认不托管 DHCP
-sed -i "s/^manage_dhcp: .*/manage_dhcp: 0/g" /etc/cobbler/settings.yaml || true
+sed -i "s/^manage_dhcp: .*/manage_dhcp: 0/g" "$SETTINGS_FILE" || true
 
 # 设置安装默认 root 密码
 if [ -n "$ROOT_PASSWORD" ]; then
