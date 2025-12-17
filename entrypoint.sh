@@ -24,13 +24,21 @@ done
 
 # 配置 Cobbler
 echo "Configuring Cobbler..."
-sed -i "s/^server: 127.0.0.1/server: $SERVER/g" /etc/cobbler/settings.yaml
-sed -i "s/^next_server_v4: 127.0.0.1/next_server_v4: $SERVER/g" /etc/cobbler/settings.yaml
+sed -i "s/^server: .*/server: $SERVER/g" /etc/cobbler/settings.yaml || true
+sed -i "s/^next_server_v4: .*/next_server_v4: $SERVER/g" /etc/cobbler/settings.yaml || true
+# Desktop 模式下默认不托管 DHCP
+sed -i "s/^manage_dhcp: .*/manage_dhcp: 0/g" /etc/cobbler/settings.yaml || true
 
-# 设置密码
+# 设置安装默认 root 密码
 if [ -n "$ROOT_PASSWORD" ]; then
     CRYPTED_PASSWORD=$(openssl passwd -1 "$ROOT_PASSWORD")
-    sed -i "s#^default_password.*#default_password_crypted: \"$CRYPTED_PASSWORD\"#g" /etc/cobbler/settings.yaml
+    sed -i "s#^default_password_crypted:.*#default_password_crypted: \"$CRYPTED_PASSWORD\"#g" /etc/cobbler/settings.yaml || true
+fi
+
+# 创建 Web UI 账户（cobbler/cobbler）
+if [ ! -f /etc/cobbler/users.digest ]; then
+  echo "Creating default Cobbler Web UI user 'cobbler'"
+  htdigest -c -b /etc/cobbler/users.digest "Cobbler" cobbler cobbler || true
 fi
 
 # 修复 httpd 配置（设置 ServerName）
@@ -58,20 +66,35 @@ if ! pgrep -x httpd > /dev/null; then
 fi
 
 # 启动 cobblerd  
-echo "Starting cobblerd..."
-/usr/bin/cobblerd -F &
+COBBLERD_PATH="/usr/bin/cobblerd"
+if [ ! -x "$COBBLERD_PATH" ] && [ -x "/usr/sbin/cobblerd" ]; then
+  COBBLERD_PATH="/usr/sbin/cobblerd"
+fi
+
+echo "Starting cobblerd from $COBBLERD_PATH ..."
+$COBBLERD_PATH -F &
 COBBLER_PID=$!
 
-# 等待 cobblerd 启动
-echo "Waiting for cobblerd..."
+# 等待 cobblerd 启动（通过 XMLRPC 健康检查）
+echo "Waiting for cobblerd (XMLRPC) ..."
+READY=0
 for i in {1..30}; do
-    if cobbler --version >/dev/null 2>&1; then
-        echo "Cobblerd is ready!"
-        break
-    fi
-    echo "Waiting... ($i/30)"
-    sleep 2
+  if cobbler status >/dev/null 2>&1; then
+    echo "Cobblerd is ready!"
+    READY=1
+    break
+  fi
+  echo "Waiting... ($i/30)"
+  sleep 2
 done
+if [ "$READY" != "1" ]; then
+  echo "cobblerd not ready after timeout. Last lines from /var/log/cobbler/cobbler.log:"
+  tail -n 100 /var/log/cobbler/cobbler.log || true
+fi
+
+# 运行自检
+echo "Running 'cobbler check'..."
+cobbler check || true
 
 # 同步配置
 echo "Syncing cobbler configuration..."
@@ -79,7 +102,7 @@ cobbler sync || echo "WARNING: Initial sync failed"
 
 echo "=== Cobbler Started Successfully ==="
 echo "Server IP: $SERVER"
-echo "Web UI: http://$SERVER/cobbler_web"
+echo "Web UI: http://$SERVER:80/cobbler_web"
 echo "Username: cobbler"
 echo "Password: cobbler"
 

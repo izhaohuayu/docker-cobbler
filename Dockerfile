@@ -7,9 +7,9 @@ COPY $COBBLER_RPM /$COBBLER_RPM
 RUN set -ex \
   && dnf install -y epel-release \
   && dnf install -y /$COBBLER_RPM \
-  && dnf install -y httpd dhcp-server pykickstart yum-utils debmirror git rsync-daemon \
+  && dnf install -y httpd cobbler-web dhcp-server pykickstart yum-utils debmirror git rsync-daemon \
           ipxe-bootimgs shim grub2-efi-x64-modules python3-mod_wsgi python3-pyyaml \
-          openssl procps-ng rsyslog \
+          openssl procps-ng rsyslog tftp-server httpd-tools \
   && dnf clean all \
   # fix debian repo support
   && sed -i "s/^@dists=/# @dists=/g" /etc/debmirror.conf \
